@@ -1,39 +1,45 @@
 # API de Gerenciamento de Tarefas
 
-API REST desenvolvida para a GS de Cloud Security Prevention e DevSecOps. A aplicação usa FastAPI, SQLite e autenticação por chave de API.
+API REST desenvolvida para a GS de **Cloud Security Prevention e DevSecOps**. A solução utiliza FastAPI, SQLite e autenticação por chave de API, com implantação em uma instância Amazon EC2.
 
-[![Implantar no Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FDaviSuedt%2Fapi-gerenciamento-tarefas%2Fmain%2Fdeploy%2Fazuredeploy.json)
+## Acessos
+
+- API: <https://3-20-240-225.sslip.io>
+- Health check: <https://3-20-240-225.sslip.io/health>
+- Swagger UI: <https://3-20-240-225.sslip.io/docs>
 
 ## Funcionalidades
 
-- Criar, listar, consultar, atualizar e excluir tarefas.
-- Persistir os dados em SQLite.
-- Validar os dados de entrada.
-- Proteger as rotas de tarefas com o cabeçalho `X-API-Key`.
-- Documentação interativa no Swagger (`/docs`).
-- Pipeline no GitHub Actions com testes, Bandit e auditoria de dependências.
+- CRUD completo de tarefas.
+- Persistência em SQLite.
+- Validação de entrada com Pydantic.
+- Autenticação pelo cabeçalho `X-API-Key`.
+- Documentação interativa com Swagger UI.
+- Pipeline com testes, Bandit e auditoria de dependências.
 
-## Execução local
+## Arquitetura na AWS
 
-```bash
-python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-pip install -r requirements-dev.txt
-export API_KEY="uma-chave-segura"
-uvicorn app.main:app --reload
+```text
+Cliente HTTPS
+      |
+      v
+Nginx (TLS e proxy reverso)
+      |
+      v
+FastAPI/Uvicorn em 127.0.0.1:8000
+      |
+      v
+SQLite no volume EBS criptografado
 ```
 
-No PowerShell:
+Infraestrutura utilizada:
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements-dev.txt
-$env:API_KEY = "uma-chave-segura"
-uvicorn app.main:app --reload
-```
-
-Acesse `http://127.0.0.1:8000/docs`. Nas rotas de tarefas, envie o cabeçalho `X-API-Key` com a chave configurada.
+- Amazon EC2 `t3.micro` em `us-east-2` (Ohio).
+- Ubuntu Server 26.04 LTS.
+- Volume EBS gp3 de 8 GiB criptografado.
+- IMDSv2 obrigatório.
+- HTTP/HTTPS públicos e SSH restrito ao IP do administrador.
+- Nginx, systemd e certificado HTTPS da Let's Encrypt.
 
 ## Endpoints
 
@@ -47,23 +53,56 @@ Acesse `http://127.0.0.1:8000/docs`. Nas rotas de tarefas, envie o cabeçalho `X
 | PATCH | `/tarefas/{id}` | Atualiza uma tarefa | Sim |
 | DELETE | `/tarefas/{id}` | Exclui uma tarefa | Sim |
 
-## Controles de segurança
-
-- Segredos são lidos de variáveis de ambiente e não ficam no repositório.
-- Consultas SQL usam parâmetros para impedir injeção de SQL.
-- Pydantic valida tamanho e formato dos dados.
-- O serviço Linux executa com usuário sem privilégios e proteções do systemd.
-- O Nginx limita o tamanho das requisições e adiciona cabeçalhos de segurança.
-- O pipeline executa testes, análise estática e auditoria de dependências.
-
-## Testes
+## Execução local
 
 ```bash
-pytest -q
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+export API_KEY="uma-chave-segura"
+python -m uvicorn app.main:app --reload
+```
+
+No PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+$env:API_KEY = "uma-chave-segura"
+python -m uvicorn app.main:app --reload
+```
+
+## Implantação automatizada na AWS
+
+Use como **User Data** de uma instância Ubuntu:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+curl --fail --silent --show-error --location \
+  https://raw.githubusercontent.com/DaviSuedt/api-gerenciamento-tarefas/main/deploy/cloud-init-aws.sh \
+  | bash
+```
+
+O instalador clona o repositório, cria o ambiente Python, gera uma API Key aleatória, configura permissões, systemd e Nginx e valida o endpoint `/health`. A chave fica em `~/api-key.txt` e não deve ser publicada.
+
+## Controles de segurança
+
+- Segredos carregados por variáveis de ambiente.
+- Consultas SQL parametrizadas.
+- Validação de tamanho e valores com Pydantic.
+- Uvicorn acessível somente pelo Nginx local.
+- Serviço executado com usuário sem login e proteções do systemd.
+- EBS criptografado, IMDSv2 obrigatório e SSH restrito.
+- HTTPS com renovação automática.
+
+## Testes e DevSecOps
+
+```bash
+python -m pytest -q
 bandit -r app -x tests
 pip-audit -r requirements.txt
 ```
 
-## Arquitetura planejada no Azure
-
-O cliente acessa o IP público da VM. O Network Security Group permite HTTP e restringe SSH. O Nginx recebe a requisição e a encaminha ao Uvicorn/FastAPI em uma porta interna. A API valida a chave e grava os dados no arquivo SQLite armazenado no disco persistente da VM.
+O workflow `.github/workflows/seguranca.yml` é executado em pushes e pull requests.
