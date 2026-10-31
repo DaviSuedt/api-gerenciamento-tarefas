@@ -4,7 +4,7 @@
   "parameters": {
     "location": {
       "type": "string",
-      "defaultValue": "eastus",
+      "defaultValue": "eastus2",
       "metadata": {
         "description": "Região dos recursos da GS"
       }
@@ -145,7 +145,7 @@
       ],
       "properties": {
         "hardwareProfile": {
-          "vmSize": "Standard_B1s"
+          "vmSize": "Standard_B1ms"
         },
         "storageProfile": {
           "imageReference": {
