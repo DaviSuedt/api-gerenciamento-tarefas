@@ -25,7 +25,7 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Executar testes
-        run: pytest -q
+        run: python -m pytest -q
 
       - name: Analisar código com Bandit
         run: bandit -r app -x tests
