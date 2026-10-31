@@ -2,6 +2,9 @@
 .venv/
 .deps/
 .tmp/
+.tools/
+.azure/
+.gh/
 __pycache__/
 .pytest_cache/
 .ruff_cache/
