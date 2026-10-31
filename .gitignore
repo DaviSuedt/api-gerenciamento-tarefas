@@ -3,7 +3,6 @@
 .deps/
 .tmp/
 .tools/
-.azure/
 .gh/
 .ssh/
 .secrets/
