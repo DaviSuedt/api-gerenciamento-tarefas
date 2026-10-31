@@ -4,7 +4,7 @@
   "parameters": {
     "location": {
       "type": "string",
-      "defaultValue": "eastus2",
+      "defaultValue": "westus2",
       "metadata": {
         "description": "Região dos recursos da GS"
       }
@@ -95,7 +95,6 @@
       "apiVersion": "2023-09-01",
       "name": "[variables('publicIpName')]",
       "location": "[parameters('location')]",
-      "zones": ["1"],
       "sku": {
         "name": "Standard"
       },
@@ -141,7 +140,6 @@
       "apiVersion": "2024-03-01",
       "name": "[variables('vmName')]",
       "location": "[parameters('location')]",
-      "zones": ["1"],
       "dependsOn": [
         "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
       ],
