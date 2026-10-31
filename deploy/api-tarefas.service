@@ -1,0 +1,20 @@
+[Unit]
+Description=API de Gerenciamento de Tarefas
+After=network.target
+
+[Service]
+Type=simple
+User=api-tarefas
+Group=api-tarefas
+WorkingDirectory=/opt/api-tarefas
+EnvironmentFile=/etc/api-tarefas.env
+ExecStart=/opt/api-tarefas/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/api-tarefas/data
+
+[Install]
+WantedBy=multi-user.target
