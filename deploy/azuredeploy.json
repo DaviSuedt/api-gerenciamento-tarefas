@@ -1,0 +1,202 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "metadata": {
+        "description": "Região dos recursos da GS"
+      }
+    }
+  },
+  "variables": {
+    "vmName": "vm-gs-api-tarefas",
+    "nsgName": "nsg-gs-api-tarefas",
+    "vnetName": "vnet-gs-api-tarefas",
+    "subnetName": "subnet-api",
+    "publicIpName": "pip-gs-api-tarefas",
+    "nicName": "nic-gs-api-tarefas",
+    "dnsLabel": "gs-api-tarefas-davisuedt-20261030",
+    "sshKey": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCWBWpCf7onxBepg2myr82iHtrAdAvITjP2bcNuWO2Qhh1El/twJegRGLxXUFtmKpmzIwYdkqGqbOIxnXROSzuSCEaiR/1PZdZh3QZG7CqWFQ0qecnqRQPnOvPgUEi57rLoXKKbXjgmx8sT32ONV5dUlGCSiTNngAJetgYR2Zlh07SxelM6nRDUQE9u4tlftK81ty9sKXKtQH88NOsk1oJRgrgC6OjDaSoFsDs76CjL6aDMiRiC/F65h7VCp1npHzxNfLU+dB+FvqJNZD1oVYwygCpZySSE1qg9P/4JyKCQga52M/Stgv4OAZsfFQw1GHSix60yo10qB39wAyt9lSOQcnwIcvaR5hgjV/kSjx8zEw1Z5OISDL2uAyysJeEUvP2ubf/PTUPnl09bzYzD4Gbo0RRubkDJ+MX7ajOiinBYhBsza34uf7LylJOGoWuiKHYRFgD3dTSkK9mOCQB4/aSj+v1yj3vrWbNpkfIdToAgzN9yFz5xC+opt3yw3GbxsiM= gs-api-tarefas",
+    "cloudInit": "#!/bin/bash\nset -euo pipefail\nexport DEBIAN_FRONTEND=noninteractive\napt-get update\napt-get install -y python3-venv python3-pip nginx git openssl\nid api-tarefas >/dev/null 2>&1 || useradd --system --home /opt/api-tarefas --shell /usr/sbin/nologin api-tarefas\nrm -rf /opt/api-tarefas\ngit clone https://github.com/DaviSuedt/api-gerenciamento-tarefas.git /opt/api-tarefas\npython3 -m venv /opt/api-tarefas/.venv\n/opt/api-tarefas/.venv/bin/pip install --no-cache-dir -r /opt/api-tarefas/requirements.txt\nmkdir -p /opt/api-tarefas/data\nchown -R api-tarefas:api-tarefas /opt/api-tarefas\nAPI_KEY=\"$(openssl rand -hex 24)\"\nprintf 'API_KEY=%s\\nDATABASE_PATH=/opt/api-tarefas/data/tarefas.db\\n' \"$API_KEY\" > /etc/api-tarefas.env\nchown root:api-tarefas /etc/api-tarefas.env\nchmod 640 /etc/api-tarefas.env\nprintf '%s\\n' \"$API_KEY\" > /home/azureuser/api-key.txt\nchown azureuser:azureuser /home/azureuser/api-key.txt\nchmod 600 /home/azureuser/api-key.txt\ncp /opt/api-tarefas/deploy/api-tarefas.service /etc/systemd/system/api-tarefas.service\ncp /opt/api-tarefas/deploy/nginx.conf /etc/nginx/sites-available/default\nnginx -t\nsystemctl daemon-reload\nsystemctl enable --now api-tarefas\nsystemctl enable --now nginx\n"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('nsgName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "Permitir-SSH",
+            "properties": {
+              "priority": 100,
+              "access": "Allow",
+              "direction": "Inbound",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "22",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "Permitir-HTTP",
+            "properties": {
+              "priority": 110,
+              "access": "Allow",
+              "direction": "Inbound",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "80",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*"
+            }
+          },
+          {
+            "name": "Permitir-HTTPS",
+            "properties": {
+              "priority": 120,
+              "access": "Allow",
+              "direction": "Inbound",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('vnetName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": ["10.20.0.0/16"]
+        },
+        "subnets": [
+          {
+            "name": "[variables('subnetName')]",
+            "properties": {
+              "addressPrefix": "10.20.1.0/24"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('publicIpName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[variables('dnsLabel')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('nicName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+      ],
+      "properties": {
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+        },
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2024-03-01",
+      "name": "[variables('vmName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_B1s"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "Canonical",
+            "offer": "ubuntu-24_04-lts",
+            "sku": "server",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "deleteOption": "Delete",
+            "diskSizeGB": 30,
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            }
+          }
+        },
+        "osProfile": {
+          "computerName": "vm-gs-api-tarefas",
+          "adminUsername": "azureuser",
+          "customData": "[base64(variables('cloudInit'))]",
+          "linuxConfiguration": {
+            "disablePasswordAuthentication": true,
+            "ssh": {
+              "publicKeys": [
+                {
+                  "path": "/home/azureuser/.ssh/authorized_keys",
+                  "keyData": "[variables('sshKey')]"
+                }
+              ]
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]",
+              "properties": {
+                "primary": true,
+                "deleteOption": "Delete"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "apiUrl": {
+      "type": "string",
+      "value": "[format('http://{0}.{1}.cloudapp.azure.com', variables('dnsLabel'), parameters('location'))]"
+    }
+  }
+}

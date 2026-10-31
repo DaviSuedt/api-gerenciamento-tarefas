@@ -2,6 +2,8 @@
 
 API REST desenvolvida para a GS de Cloud Security Prevention e DevSecOps. A aplicação usa FastAPI, SQLite e autenticação por chave de API.
 
+[![Implantar no Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FDaviSuedt%2Fapi-gerenciamento-tarefas%2Fmain%2Fdeploy%2Fazuredeploy.json)
+
 ## Funcionalidades
 
 - Criar, listar, consultar, atualizar e excluir tarefas.
