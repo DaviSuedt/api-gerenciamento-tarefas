@@ -16,7 +16,7 @@
       "name": "[variables('planName')]",
       "location": "[parameters('location')]",
       "kind": "linux",
-      "sku": { "name": "F1", "tier": "Free", "size": "F1", "family": "F", "capacity": 1 },
+      "sku": { "name": "B1", "tier": "Basic", "size": "B1", "family": "B", "capacity": 1 },
       "properties": { "reserved": true }
     },
     {
@@ -61,6 +61,6 @@
   "outputs": {
     "apiUrl": { "type": "string", "value": "[format('https://{0}.azurewebsites.net', variables('siteName'))]" },
     "swaggerUrl": { "type": "string", "value": "[format('https://{0}.azurewebsites.net/docs', variables('siteName'))]" },
-    "sku": { "type": "string", "value": "F1 (Free)" }
+    "sku": { "type": "string", "value": "B1 (Basic)" }
   }
 }
